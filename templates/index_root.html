@@ -1,0 +1,44 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to the To-Do API!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 10px 0;
+        }
+        a {
+            text-decoration: none;
+            color: #007bff;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to the To-Do API!</h1>
+    <p>Help:</p>
+    <ul>
+        <li>To create a new to-do item, make a POST request to <a href="/todos/">127.0.0.1:8000/todos/</a>.</li>
+        <li>To retrieve all to-do items, visit <a href="/todos/">127.0.0.1:8000/todos/</a> or make a GET request.</li>
+        <li>To see an interactive documentation page, visit <a href="/docs">127.0.0.1:8000/docs</a>.</li>
+        <li>To see the ReDoc documentation, visit <a href="/redoc">127.0.0.1:8000/redoc</a>.</li>
+    </ul>
+    <p>Thank you for using the To-Do API!</p>
+</body>
+</html>

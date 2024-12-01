@@ -1,0 +1,161 @@
+<!-- templates/index_todos.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        .todo-item {
+            background: #fff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .todo-item h3 {
+            margin: 0;
+            font-weight: bold;
+        }
+        .todo-item p {
+            margin: 5px 0;
+        }
+        .todo-item .priority {
+            color: #FF6347;
+            font-weight: bold;
+        }
+        .todo-form {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        input[type="text"], input[type="number"] {
+            padding: 8px;
+            margin: 5px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Todo List</h1>
+
+    <!-- Form to Add New Todo -->
+    <div class="todo-form">
+        <h3>Add a New Todo</h3>
+        <form id="todo-form">
+            <input type="text" id="title" placeholder="Title" required>
+            <input type="text" id="description" placeholder="Description" required>
+            <input type="number" id="priority" placeholder="Priority (0-5)" min="0" max="5" required>
+            <button type="submit">Add Todo</button>
+        </form>
+    </div>
+
+    <!-- Todo List Container -->
+    <div id="todo-list">
+        <!-- Todo items will be rendered here dynamically -->
+        {% for todo in todos %}
+        <div class="todo-item">
+            <h3>{{ todo.title }}</h3>
+            <p>{{ todo.description }}</p>
+            <p class="priority">Priority: {{ todo.priority }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        // Fetch the current list of todos from the backend
+        async function fetchTodos() {
+            try {
+                const response = await fetch("/todos/");
+                const todos = await response.json();
+                console.log("Fetched Todos:", todos);  // Debug log
+
+                const todoList = document.getElementById("todo-list");
+                todoList.innerHTML = ""; // Clear the list before rendering
+
+                // Render each todo item in the list
+                todos.forEach(todo => {
+                    const todoItem = document.createElement("div");
+                    todoItem.classList.add("todo-item");
+
+                    todoItem.innerHTML = `
+                        <h3>${todo.title}</h3>
+                        <p>${todo.description}</p>
+                        <p class="priority">Priority: ${todo.priority}</p>
+                    `;
+                    todoList.appendChild(todoItem);
+                });
+            } catch (error) {
+                console.error("Error fetching todos:", error);
+            }
+        }
+
+        // Add a new todo item via the form
+        async function addTodo(event) {
+            event.preventDefault();  // Prevent the form from submitting traditionally
+
+            const title = document.getElementById("title").value;
+            const description = document.getElementById("description").value;
+            const priority = document.getElementById("priority").value;
+
+            // Send POST request to add the new todo
+            try {
+                const response = await fetch("/todos/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        description: description,
+                        priority: parseInt(priority),
+                    }),
+                });
+
+                if (response.ok) {
+                    console.log("Todo added successfully");  // Debug log
+                    // Reset the form and fetch the updated list
+                    document.getElementById("todo-form").reset();
+                    fetchTodos();  // Fetch and display the updated list
+                } else {
+                    alert("Failed to add todo");
+                }
+            } catch (error) {
+                console.error("Error adding todo:", error);
+            }
+        }
+
+        // Event listener for form submission
+        document.getElementById("todo-form").addEventListener("submit", addTodo);
+
+        // Fetch todos on page load
+        window.onload = fetchTodos;
+    </script>
+</body>
+</html>
