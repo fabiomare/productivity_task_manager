@@ -1,4 +1,3 @@
-<!-- templates/index_todos.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -32,6 +31,16 @@
         .todo-item .priority {
             color: #FF6347;
             font-weight: bold;
+        }
+        .todo-item .hours {
+            color: #6A5ACD;
+            font-weight: bold;
+        }
+        .todo-item .subtasks {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f2f2f2;
+            border-radius: 5px;
         }
         .todo-form {
             margin: 20px 0;
@@ -77,130 +86,164 @@
             <input type="text" id="title" placeholder="Title" required>
             <input type="text" id="description" placeholder="Description" required>
             <input type="number" id="priority" placeholder="Priority (0-5)" min="0" max="5" required>
+            <input type="number" id="estimated-hours" placeholder="Estimated Hours (optional)" min="0">
+            <div id="subtasks-container">
+                <h4>Subtasks</h4>
+                <button type="button" onclick="addSubtask()">Add Subtask</button>
+                <div id="subtask-list"></div>
+            </div>
             <button type="submit">Add Todo</button>
         </form>
     </div>
 
-    <!-- Active Todo List Container -->
-    <h2>Active Todos</h2>
-    <div id="active-todo-list">
-        <!-- Active todo items will be rendered here dynamically -->
-        {% for todo in active_todos %}
-        <div class="todo-item" id="todo-{{ todo.id }}">
-            <h3>{{ todo.title }}</h3>
-            <p>{{ todo.description }}</p>
-            <p class="priority">Priority: {{ todo.priority }}</p>
-            <button onclick="markDone({{ todo.id }})">Mark as Done</button>
-        </div>
-        {% endfor %}
-    </div>
+	<div id="active-todo-list">
+		{% for todo in active_todos %}
+		<div class="todo-item" id="todo-{{ todo.id }}">
+			<h3>{{ todo.title }}</h3>
+			<p>{{ todo.description }}</p>
+			<p class="priority">Priority: {{ todo.priority }}</p>
+			<p class="hours">Estimated Hours: {{ todo.estimated_hours or 'N/A' }}</p>
+			{% if todo.subtasks %}
+			<div class="subtasks">
+				<h4>Subtasks</h4>
+				<ul>
+					{% for subtask in todo.subtasks %}
+					<li>
+						<input type="checkbox" {% if subtask.done %}checked{% endif %} disabled> {{ subtask.title }}
+					</li>
+					{% endfor %}
+				</ul>
+			</div>
+			{% endif %}
+			<button class="mark-done-button" data-todo-id="{{ todo.id }}">Mark as Done</button>
+		</div>
+		{% endfor %}
+	</div>
 
     <!-- Done Todo List Container -->
     <h2>Done Todos</h2>
     <div id="done-todo-list">
-        <!-- Done todo items will be rendered here dynamically -->
         {% for todo in done_todos %}
         <div class="todo-item">
             <h3>{{ todo.title }}</h3>
             <p>{{ todo.description }}</p>
             <p class="priority">Priority: {{ todo.priority }}</p>
+            <p class="hours">Estimated Hours: {{ todo.estimated_hours or 'N/A' }}</p>
+            {% if todo.subtasks %}
+            <div class="subtasks">
+                <h4>Subtasks</h4>
+                <ul>
+                    {% for subtask in todo.subtasks %}
+                    <li>
+                        <input type="checkbox" {% if subtask.done %}checked{% endif %} disabled> {{ subtask.title }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
 
     <script>
         async function fetchTodos() {
-            try {
-                const response = await fetch("/todos/");
-                const todos = await response.json();
-                console.log("Fetched Todos:", todos);
+			try {
+				const response = await fetch("/todos/");
+				if (response.ok) {
+					const htmlContent = await response.text();
+					document.body.innerHTML = htmlContent;
+					bindEventListeners();
+				} else {
+					console.error("Failed to fetch todos:", response.statusText);
+				}
+			} catch (error) {
+				console.error("Error fetching todos:", error);
+			}
+		}
 
-                // Active Todos Section
-                const activeTodoList = document.getElementById("active-todo-list");
-                activeTodoList.innerHTML = "";
-                todos.active.forEach(todo => {
-                    const todoItem = document.createElement("div");
-                    todoItem.classList.add("todo-item");
-                    todoItem.innerHTML = `
-                        <h3>${todo.title}</h3>
-                        <p>${todo.description}</p>
-                        <p class="priority">Priority: ${todo.priority}</p>
-                        <button onclick="markDone(${todo.id})">Mark as Done</button>
-                    `;
-                    activeTodoList.appendChild(todoItem);
-                });
+		
+	    function bindEventListeners() {
+			document.getElementById("todo-form").addEventListener("submit", addTodo);
+			document.querySelectorAll(".mark-done-button").forEach((button) => {
+				button.addEventListener("click", () => markDone(button.dataset.todoId));
+			});
+		}
 
-                // Done Todos Section
-                const doneTodoList = document.getElementById("done-todo-list");
-                doneTodoList.innerHTML = "";
-                todos.done.forEach(todo => {
-                    const todoItem = document.createElement("div");
-                    todoItem.classList.add("todo-item");
-                    todoItem.innerHTML = `
-                        <h3>${todo.title}</h3>
-                        <p>${todo.description}</p>
-                        <p class="priority">Priority: ${todo.priority}</p>
-                    `;
-                    doneTodoList.appendChild(todoItem);
-                });
-            } catch (error) {
-                console.error("Error fetching todos:", error);
-            }
-        }
+		async function addTodo(event) {
+			event.preventDefault();
 
-        async function addTodo(event) {
-            event.preventDefault();
+			const title = document.getElementById("title").value;
+			const description = document.getElementById("description").value;
+			const priority = document.getElementById("priority").value;
+			const estimatedHours = document.getElementById("estimated-hours").value;
+			const subtaskElements = document.querySelectorAll("#subtask-list div");
 
-            const title = document.getElementById("title").value;
-            const description = document.getElementById("description").value;
-            const priority = document.getElementById("priority").value;
+			const subtasks = Array.from(subtaskElements).map((el) => {
+				const title = el.querySelector(".subtask-title").value;
+				const hours = el.querySelector(".subtask-hours").value;
+				if (!title || isNaN(hours)) {
+					throw new Error("Each subtask must have a title and valid hours.");
+				}
+				return {
+					title,
+					estimated_hours: parseInt(hours),
+				};
+			});
 
-            try {
-                const response = await fetch("/todos/", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        title: title,
-                        description: description,
-                        priority: parseInt(priority),
-                    }),
-                });
+			try {
+				const response = await fetch("/todos/", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						title,
+						description,
+						priority: parseInt(priority),
+						estimated_hours: parseInt(estimatedHours),
+						subtasks,
+					}),
+				});
 
-                if (response.ok) {
-                    fetchTodos();
-                    document.getElementById("todo-form").reset();
-                } else {
-                    alert("Failed to add todo");
-                }
-            } catch (error) {
-                console.error("Error adding todo:", error);
-            }
-        }
+				if (response.ok) {
+					fetchTodos();
+				} else {
+					const error = await response.json();
+					alert(`Failed to add task: ${error.detail}`);
+				}
+			} catch (error) {
+				console.error("Error adding todo:", error);
+				alert(`Failed to add task: ${error.message}`);
+			}
+		}
 
-        async function markDone(todoId) {
-            try {
-                const response = await fetch(`/todos/${todoId}/done`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                    }
-                });
 
-                if (response.ok) {
-                    fetchTodos();
-                } else {
-                    alert("Failed to mark todo as done");
-                }
-            } catch (error) {
-                console.error("Error marking todo as done:", error);
-            }
-        }
+		async function markDone(todoId) {
+			try {
+				const response = await fetch(`/todos/${todoId}/done`, {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+				});
+				if (response.ok) {
+					fetchTodos();
+				} else {
+					alert("Failed to mark todo as done");
+				}
+			} catch (error) {
+				console.error("Error marking todo as done:", error);
+			}
+		}
 
-        document.getElementById("todo-form").addEventListener("submit", addTodo);
+		function addSubtask() {
+			const subtaskList = document.getElementById("subtask-list");
+			const subtaskDiv = document.createElement("div");
+			subtaskDiv.innerHTML = `
+				<input type="text" class="subtask-title" placeholder="Subtask Title" required />
+				<input type="number" class="subtask-hours" placeholder="Estimated Hours" min="1" required />
+			`;
+			subtaskList.appendChild(subtaskDiv);
+		}
 
-        window.onload = fetchTodos;
+
+		window.onload = fetchTodos;
     </script>
 </body>
 </html>
